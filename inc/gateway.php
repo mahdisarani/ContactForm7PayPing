@@ -525,6 +525,7 @@ if ( is_plugin_active('contact-form-7/wp-contact-form-7.php' ) ){
 /* ShortCode Result Page */
 add_shortcode('result_payment', 'CF7_PayPing_result_payment_func');
 function CF7_PayPing_result_payment_func( $atts ){
+	if( is_admin() ){ return; }
     global $wpdb;
     $Status = '';
     $refId = $_GET['refid'];
