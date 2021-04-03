@@ -83,7 +83,7 @@
                             'Accept' => 'application/json'  ),
                         'cookies' => array()
                     );
-                    $pay_url = 'https://api.payping.ir/v1/pay';
+                    $pay_url = 'https://api.payping.ir/v2/pay';
                     $pay_response = wp_remote_post( $pay_url, $pay_args );
                     $PAY_XPP_ID = $pay_response["headers"]["x-paypingrequest-id"];
                     if( is_wp_error( $pay_response ) ){
@@ -98,7 +98,7 @@
                                 $code_pay =  json_decode( $code_pay, true );
                                 $_x['transid'] = $code_pay["code"];
                                 $wpdb->update( $table_name, $_x, array( 'id' => $clientrefid ), $_y, array( '%d' ) );
-                                wp_redirect( sprintf( 'https://api.payping.ir/v1/pay/gotoipg/%s', $code_pay["code"] ) );
+                                wp_redirect( sprintf( 'https://api.payping.ir/v2/pay/gotoipg/%s', $code_pay["code"] ) );
                                 exit;
                             }else{
                                 $Message = ' تراکنش ناموفق بود- کد خطا : '.$PAY_XPP_ID;
@@ -106,11 +106,6 @@
                                 print_r($Message);
                                 echo '</pre>';
                             }
-                        }elseif( $code == 400){
-                            $Message = wp_remote_retrieve_body( $pay_response ).'<br /> کد خطا: '.$PAY_XPP_ID;
-                            echo '<pre>';
-                            print_r($Message);
-                            echo '</pre>';
                         }else{
                             $Message = wp_remote_retrieve_body( $pay_response ).'<br /> کد خطا: '.$PAY_XPP_ID;
                             echo '<pre>';

@@ -129,11 +129,10 @@ function CF7_PayPing_relative_time( $ptime ){
 }
 
 function CF7_PayPing_CreateMessage( $title, $body, $endstr = "" ){
-    if ($endstr != "") {
+    if( $endstr != "") {
         return $endstr;
     }
-    $tmp = '<div style="border:#CCC 1px solid; width:90%;"> 
-    ' . $title . '<br />' . $body . '</div>';
+    $tmp = '<div class="result-box-text-verify-payping"><h2 class="title-text-verify-payping">' . $title . '</h2><br>' . $body . '</div>';
     return $tmp;
 }
 
@@ -526,28 +525,31 @@ if ( is_plugin_active('contact-form-7/wp-contact-form-7.php' ) ){
 add_shortcode('result_payment', 'CF7_PayPing_result_payment_func');
 function CF7_PayPing_result_payment_func( $atts ){
 	if( is_admin() ){ return; }
+	if( ! isset( $_POST['refid'] ) ){ return CF7_PayPing_CreateMessage("پرداخت ناموفق!", 'شماره پرداخت پیدا نشد!', "" ); }
+	if( ! isset( $_POST['clientrefid'] ) ){ return CF7_PayPing_CreateMessage("پرداخت ناموفق!", 'شماره فاکتور پیدا نشد!', "" ); }
+	
     global $wpdb;
     $Status = '';
-    $refId = $_GET['refid'];
-    $clientrefid = $_GET['clientrefid'];
+    $clientrefid = $_POST['clientrefid'];
     
     $Theme_Message = get_option('cf7pp_theme_message', '');
     $theme_error_message = get_option('cf7pp_theme_error_message', '');
 
     $options = get_option('cf7_PayPing_options');
-    foreach ($options as $k => $v) {
-        $value[$k] = $v;
-    }
+	if( ! isset( $options ) || empty( $options ) ){ return CF7_PayPing_CreateMessage("پرداخت ناموفق!", 'مشکل تنظیمات، با مدیر سایت در ارتباط باشید.', "" ); }
 
-    $TokenCode = $value['payping_token'];
-    $sucess_color = $value['sucess_color'];
-    $error_color = $value['error_color'];
+    $TokenCode = $options['payping_token'];
+    $sucess_color = $options['sucess_color'];
+    $error_color = $options['error_color'];
 
     $table_name = $wpdb->prefix . 'cf7_payping_transaction';
         $cf_Form = $wpdb->get_row("SELECT * FROM $table_name WHERE id =" . $clientrefid );
         if( null !== $cf_Form){
             $Amount = $cf_Form->cost;
         }
+	if( ! isset( $Amount ) || empty( $Amount ) ){
+		return CF7_PayPing_CreateMessage("پرداخت ناموفق!", 'عدم ارسال مبلغ، لطفا با مدیر سایت در تماس باشید.', "" );
+	}
     /* Verify Pay */
     $varify_data = array( 'refId' => $refId, 'amount' => $Amount );
     $varify_args = array(
@@ -564,41 +566,39 @@ function CF7_PayPing_result_payment_func( $atts ){
         'cookies' => array()
     );
 
-$verify_url = 'https://api.payping.ir/v1/pay/verify';
-$verify_response = wp_remote_post( $verify_url, $varify_args );
+	$verify_url = 'https://api.payping.ir/v2/pay/verify';
+	$verify_response = wp_remote_post( $verify_url, $varify_args );
          
-$VERIFY_XPP_ID = wp_remote_retrieve_headers( $verify_response )['x-paypingrequest-id'];
-if( is_wp_error( $verify_response ) ){
-    $Status = 'error';
-    $Message = 'خطا در ارتباط به پی‌پینگ : شرح خطا '.$verify_response->get_error_message();
-    echo $Message;
-}else{
-    $code = wp_remote_retrieve_response_code( $verify_response );
-    if( $code === 200 ){
-        $Message = wp_remote_retrieve_body( $verify_response );
-        $Status = 'success';
-    }elseif( $code == 400) {
-        $Status = 'error';
-        $Message = wp_remote_retrieve_body( $verify_response ).'<br /> شماره خطا: '.$VERIFY_XPP_ID;
-        echo $Message;
-    }else{
-        $Status = 'error';
-        $Message = wp_remote_retrieve_body( $verify_response ).'<br /> شماره خطا: '.$VERIFY_XPP_ID;
-        echo $Message;
-    }
-}
+	$VERIFY_XPP_ID = wp_remote_retrieve_headers( $verify_response )['x-paypingrequest-id'];
+	if( is_wp_error( $verify_response ) ){
+		$Status = 'error';
+		$Message = 'خطا در ارتباط با پی‌پینگ : شرح خطا '.$verify_response->get_error_message();
+		return CF7_PayPing_CreateMessage("پرداخت ناموفق!", $Message, "" );
+	}else{
+		$code = wp_remote_retrieve_response_code( $verify_response );
+		if( $code === 200 ){
+			$Status = 'success';
+		}else{
+			$Message = json_decode( $verify_response['body'], true );
+			if( array_key_exists( '15', $Message) ){
+				$Status = 'success';
+			}else{
+				$Status = 'error';
+			}
+		}
+	}
 
-    if ( $Status == 'success' ){
+    if( $Status == 'success' ){
         $wpdb->update( $wpdb->prefix . 'cf7_payping_transaction', array( 'status' => 'success', 'transid' => $refId ), array( 'id' => $clientrefid ), array( '%s', '%s' ), array( '%d' ) );
 
         //Dispaly
         $body = '<b style="color:'.$sucess_color.';">'.stripslashes(str_replace('[transaction_id]', $refId, $Theme_Message ) ).'<b/>';
-        return CF7_PayPing_CreateMessage( "", "", $body );
+        return CF7_PayPing_CreateMessage( "پرداخت موفق", $body, "" );
     }elseif( $Status == 'error' ){
         $wpdb->update( $wpdb->prefix . 'cf7_payping_transaction', array( 'status' => 'error', 'transid' => $refId ), array( 'id' => $clientrefid ), array( '%s', '%s' ), array( '%d' ) );
+		
         //Dispaly
         $body = '<b style="color:'.$error_color.';">'.$theme_error_message.'<b/>';
-        return CF7_PayPing_CreateMessage( "", "", $body );
+        return CF7_PayPing_CreateMessage("پرداخت ناموفق!", $body, "" );
     }
 }
-?>
