@@ -530,6 +530,7 @@ function CF7_PayPing_result_payment_func( $atts ){
 	
     global $wpdb;
     $Status = '';
+	$refId = $_POST['refid'];
     $clientrefid = $_POST['clientrefid'];
     
     $Theme_Message = get_option('cf7pp_theme_message', '');
@@ -582,6 +583,12 @@ function CF7_PayPing_result_payment_func( $atts ){
 			$Message = json_decode( $verify_response['body'], true );
 			if( array_key_exists( '15', $Message) ){
 				$Status = 'success';
+			}elseif( array_key_exists( 'RefId', $Message) ){
+				$Status = 'error';
+				$txterror = 'RefId نمی تواند خالی باشد';
+			}elseif( array_key_exists( '1', $Message) ){
+				$Status = 'error';
+				$txterror = 'تراکنش توسط شما لغو شد';
 			}else{
 				$Status = 'error';
 			}
@@ -598,7 +605,12 @@ function CF7_PayPing_result_payment_func( $atts ){
         $wpdb->update( $wpdb->prefix . 'cf7_payping_transaction', array( 'status' => 'error', 'transid' => $refId ), array( 'id' => $clientrefid ), array( '%s', '%s' ), array( '%d' ) );
 		
         //Dispaly
-        $body = '<b style="color:'.$error_color.';">'.$theme_error_message.'<b/>';
+		if( isset($txterror) ){
+			$body = '<b style="color:'.$error_color.';">'.$theme_error_message.'<b/><br><span> دلیل: </span>'.$txterror;
+		}else{
+			$body = '<b style="color:'.$error_color.';">'.$theme_error_message.'<b/>';
+		}
+        
         return CF7_PayPing_CreateMessage("پرداخت ناموفق!", $body, "" );
     }
 }
