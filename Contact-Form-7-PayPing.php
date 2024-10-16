@@ -1,9 +1,9 @@
 <?php
 /*
-Plugin Name: درگاه پرداخت پی‌پینگ فرم تماس7
+Plugin Name: Payping CF7
 Plugin URI: https://payping.ir
 Description:  انجام پرداخت فرم‌های تماس7 با درگاه پی‌پینگ. با تشکر از <a href="http://MasoudAmini.ir" target="blank">Masoud Amini</a>.
-Version: 1.0.0
+Version: 1.1.0
 Author: Mahdi Sarani
 Author URI: https://mahdisarani.ir
 Text Domain: CF7PayPing

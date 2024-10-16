@@ -64,12 +64,13 @@
                     $clientrefid = $wpdb->insert_id;
                     /* Create Pay */
                     $pay_data = array(
-                        'payerName' => $Paymenter,
-                        'Amount' => $Amount,
-                        'payerIdentity'=> $payerIdentity ,
-                        'returnUrl' => $CallbackURL,
-                        'Description' => $Description ,
-                        'clientRefId' => $clientrefid
+                        'PayerName'        => $Paymenter,
+                        'Amount'           => $Amount,
+                        'PayerIdentity'    => $payerIdentity ,
+                        'ReturnUrl'        => $CallbackURL,
+                        'Description'      => $Description ,
+                        'clientRefId'      => (string) $clientrefid,
+						'NationalCode'	   => ''
                     );
                     $pay_args = array(
                         'body' => json_encode( $pay_data ),
@@ -78,12 +79,16 @@
                         'httpsversion' => '1.0',
                         'blocking' => true,  
                         'headers' => array(   
+							'X-Platform'         => 'ContactForm7',
+        		  	        'X-Platform-Version' => '1.1.1', 
                             'Authorization' => 'Bearer ' . $TokenCode,  
                             'Content-Type'  => 'application/json',    
-                            'Accept' => 'application/json'  ),
+                            'Accept' => 'application/json'  
+						),
                         'cookies' => array()
                     );
-                    $pay_url = 'https://api.payping.ir/v2/pay';
+					//var_dump($pay_data); die();
+                    $pay_url = 'https://api.payping.ir/v3/pay';
                     $pay_response = wp_remote_post( $pay_url, $pay_args );
                     $PAY_XPP_ID = $pay_response["headers"]["x-paypingrequest-id"];
                     if( is_wp_error( $pay_response ) ){
@@ -96,9 +101,10 @@
                             if( isset( $pay_response["body"] ) and $pay_response["body"] != '' ){
                                 $code_pay = wp_remote_retrieve_body( $pay_response );
                                 $code_pay =  json_decode( $code_pay, true );
+								
                                 $_x['transid'] = $code_pay["code"];
                                 $wpdb->update( $table_name, $_x, array( 'id' => $clientrefid ), $_y, array( '%d' ) );
-                                wp_redirect( sprintf( 'https://api.payping.ir/v2/pay/gotoipg/%s', $code_pay["code"] ) );
+                                wp_redirect($code_pay["url"]);
                                 exit;
                             }else{
                                 $Message = ' تراکنش ناموفق بود- کد خطا : '.$PAY_XPP_ID;

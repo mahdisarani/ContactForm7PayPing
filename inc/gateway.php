@@ -159,7 +159,7 @@ add_action( 'admin_notices', 'CF7_PayPing_plugin_admin_notices' );
 
 function CF7_PayPing_plugin_admin_notices() {
     if (!get_option('CF7_PayPing_plugin_notice_shown')) {
-        echo "<div class='updated'><p><a href='admin.php?page=CF7_PayPing_table'>برای تنظیم اطلاعات درگاه  کلیک کنید</a>.</p></div>";
+        echo esc_html_e("<div class='updated'><p><a href='admin.php?page=CF7_PayPing_table'>برای تنظیم اطلاعات درگاه  کلیک کنید</a>.</p></div>");
         update_option("CF7_PayPing_plugin_notice_shown", "true");
     }
 }
@@ -313,7 +313,7 @@ if ( is_plugin_active('contact-form-7/wp-contact-form-7.php' ) ){
 
     function CF7_PayPing_list_trans(){
         if( !current_user_can("manage_options" ) ){
-            wp_die( __( "You do not have sufficient permissions to access this page." ) );
+            wp_die( esc_html( "You do not have sufficient permissions to access this page." ) );
         }
         global $wpdb;
 
@@ -327,7 +327,7 @@ if ( is_plugin_active('contact-form-7/wp-contact-form-7.php' ) ){
         $num_of_pages = ceil($total / $limit);
         $cntx = 0;
 
-        echo '<div class="wrap">
+        echo wp_kses_post('<div class="wrap">
 		<h2>تراکنش‌ها</h2>
 		<table class="widefat post fixed" cellspacing="0">
 			<thead>
@@ -350,13 +350,13 @@ if ( is_plugin_active('contact-form-7/wp-contact-form-7.php' ) ){
 					<th scope="col" id="name" width="13%" class="manage-column" style="">وضعیت</th>
 				</tr>
 			</tfoot>
-			<tbody>';
+			<tbody>');
 
 
         if( count( $transactions ) == 0 ){
-            echo '<tr class="alternate author-self status-publish iedit" valign="top">
+            echo wp_kses_post('<tr class="alternate author-self status-publish iedit" valign="top">
 					<td class="" colspan="6">هيج تراکنش وجود ندارد.</td>
-				</tr>';
+				</tr>');
 
         }else{
             foreach($transactions as $transaction){
@@ -387,26 +387,26 @@ if ( is_plugin_active('contact-form-7/wp-contact-form-7.php' ) ){
         $page_links = paginate_links( array(
             'base' => add_query_arg('pagenum', '%#%'),
             'format' => '',
-            'prev_text' => __('&laquo;', 'aag'),
-            'next_text' => __('&raquo;', 'aag'),
+            'prev_text' => esc_html('&laquo;', 'aag'),
+            'next_text' => esc_html('&raquo;', 'aag'),
             'total' => $num_of_pages,
             'current' => $pagenum
         ));
 
         if ($page_links) {
-            echo '<center><div class="tablenav"><div class="tablenav-pages"  style="float:none; margin: 1em 0">' . $page_links . '</div></div>
+            echo '<center><div class="tablenav"><div class="tablenav-pages"  style="float:none; margin: 1em 0">' . wp_kses_post($page_links) . '</div></div>
 		</center>';
         }
 
-        echo '<br>
+        echo wp_kses_post('<br>
 		<hr>
-	</div>';
+	</div>');
     }
 
     function CF7_PayPing_table(){
         global $wpdb;
         if (!current_user_can("manage_options")) {
-            wp_die(__("You do not have sufficient permissions to access this page."));
+            wp_die(esc_html_e("You do not have sufficient permissions to access this page."));
         }
 
         echo '<form method="post" action=' . $_SERVER["REQUEST_URI"] . ' enctype="multipart/form-data">';
@@ -514,7 +514,7 @@ if ( is_plugin_active('contact-form-7/wp-contact-form-7.php' ) ){
     // give warning if contact form 7 is not active
     function CF7_PayPing_admin_notice(){
         echo '<div class="error">
-			<p>' . _e('<b> افزونه درگاه بانکی برای افزونه Contact Form 7 :</b> Contact Form 7 باید فعال باشد ', 'my-text-domain') . '</p>
+			<p>' . esc_html_e('<b> افزونه درگاه بانکی برای افزونه Contact Form 7 :</b> Contact Form 7 باید فعال باشد ', 'my-text-domain') . '</p>
 		</div>
 		';
     }
@@ -524,16 +524,33 @@ if ( is_plugin_active('contact-form-7/wp-contact-form-7.php' ) ){
 /* ShortCode Result Page */
 add_shortcode('result_payment', 'CF7_PayPing_result_payment_func');
 function CF7_PayPing_result_payment_func( $atts ){
-	if( is_admin() ){ return; }
-	if( ! isset( $_POST['refid'] ) ){ return CF7_PayPing_CreateMessage("پرداخت ناموفق!", 'شماره پرداخت پیدا نشد!', "" ); }
-	if( ! isset( $_POST['clientrefid'] ) ){ return CF7_PayPing_CreateMessage("پرداخت ناموفق!", 'شماره فاکتور پیدا نشد!', "" ); }
+	$payStatus = $_REQUEST['status'];
+	$paypingResponse = stripslashes($_REQUEST['data']);
+	$responseData = json_decode($paypingResponse, true);
+	
+	if (isset($responseData['paymentRefId'])) {
+		$refId = sanitize_text_field($responseData['paymentRefId']);
+	} else {
+		$refId = null;
+	}
+	
+    $clientrefid = (int) $responseData['clientRefId'];
+	
+	if( is_admin() ){ 
+		return; 
+	}
+	
+	/*if( ! isset( $refId ) ){ 
+		return CF7_PayPing_CreateMessage("پرداخت ناموفق!", 'شماره پرداخت پیدا نشد!', "" ); 
+	}*/
+	
+	if( ! isset( $clientrefid ) ){ 
+		return CF7_PayPing_CreateMessage("پرداخت ناموفق!", 'شماره فاکتور پیدا نشد!', "" ); 
+	}
 	
     global $wpdb;
-    $Status = '';
-	$refId = $_POST['refid'];
-    $clientrefid = $_POST['clientrefid'];
-    
-    $Theme_Message = get_option('cf7pp_theme_message', '');
+	$Status = '';
+	$Theme_Message = get_option('cf7pp_theme_message', '');
     $theme_error_message = get_option('cf7pp_theme_error_message', '');
 
     $options = get_option('cf7_PayPing_options');
@@ -551,49 +568,65 @@ function CF7_PayPing_result_payment_func( $atts ){
 	if( ! isset( $Amount ) || empty( $Amount ) ){
 		return CF7_PayPing_CreateMessage("پرداخت ناموفق!", 'عدم ارسال مبلغ، لطفا با مدیر سایت در تماس باشید.', "" );
 	}
+	
+	
     /* Verify Pay */
-    $varify_data = array( 'refId' => $refId, 'amount' => $Amount );
-    $varify_args = array(
-        'body' => json_encode( $varify_data ),
-        'timeout' => '45',
-        'redirection' => '5',
-        'httpsversion' => '1.0',
-        'blocking' => true,
-        'headers' => array(
-            'Authorization' => 'Bearer ' . $TokenCode,
-            'Content-Type' => 'application/json',
-            'Accept' => 'application/json'
-        ),
-        'cookies' => array()
-    );
-
-	$verify_url = 'https://api.payping.ir/v2/pay/verify';
-	$verify_response = wp_remote_post( $verify_url, $varify_args );
-         
-	$VERIFY_XPP_ID = wp_remote_retrieve_headers( $verify_response )['x-paypingrequest-id'];
-	if( is_wp_error( $verify_response ) ){
+	if ($payStatus == 0) {
 		$Status = 'error';
-		$Message = 'خطا در ارتباط با پی‌پینگ : شرح خطا '.$verify_response->get_error_message();
-		return CF7_PayPing_CreateMessage("پرداخت ناموفق!", $Message, "" );
-	}else{
-		$code = wp_remote_retrieve_response_code( $verify_response );
-		if( $code === 200 ){
+		$txterror = 'تراکنش توسط کاربر لغو شد';
+	} else {
+		
+		$varify_data = array( 'PaymentRefId' => $refId, 'Amount' => $Amount );
+		$varify_args = array(
+			'body' => json_encode( $varify_data ),
+			'timeout' => '45',
+			'redirection' => '5',
+			'httpsversion' => '1.0',
+			'blocking' => true,
+			'headers' => array(
+				'Authorization' => 'Bearer ' . $TokenCode,
+				'Content-Type' => 'application/json',
+				'Accept' => 'application/json'
+			),
+			'cookies' => array()
+		);
+
+		$verify_url = 'https://api.payping.ir/v3/pay/verify';
+		$verify_response = wp_remote_post( $verify_url, $varify_args );
+		
+		$body = wp_remote_retrieve_body( $verify_response );
+		$rbody = json_decode( $body, true );
+		
+		
+		if( is_wp_error( $verify_response ) ){
+			$Status = 'error';
+			$Message = 'خطا در ارتباط با پی‌پینگ : شرح خطا '.$verify_response->get_error_message();
+			return CF7_PayPing_CreateMessage("پرداخت ناموفق!", $Message, "" );
+		}elseif (isset($rbody['status']) && $rbody['status'] == 409) {
 			$Status = 'success';
+			
 		}else{
-			$Message = json_decode( $verify_response['body'], true );
-			if( array_key_exists( '15', $Message) ){
+			$code = wp_remote_retrieve_response_code( $verify_response );
+			if( $code === 200 ){
 				$Status = 'success';
-			}elseif( array_key_exists( 'RefId', $Message) ){
-				$Status = 'error';
-				$txterror = 'RefId نمی تواند خالی باشد';
-			}elseif( array_key_exists( '1', $Message) ){
-				$Status = 'error';
-				$txterror = 'تراکنش توسط شما لغو شد';
 			}else{
-				$Status = 'error';
+				$Message = json_decode( $verify_response['body'], true );
+				if( array_key_exists( '15', $Message) ){
+					$Status = 'success';
+				}elseif( array_key_exists( 'RefId', $Message) ){
+					$Status = 'error';
+					$txterror = 'RefId نمی تواند خالی باشد';
+				}else{
+					$Status = 'error';
+				}
 			}
 		}
 	}
+    
+	
+    
+    
+    
 
     if( $Status == 'success' ){
         $wpdb->update( $wpdb->prefix . 'cf7_payping_transaction', array( 'status' => 'success', 'transid' => $refId ), array( 'id' => $clientrefid ), array( '%s', '%s' ), array( '%d' ) );
