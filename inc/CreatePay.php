@@ -1,4 +1,6 @@
 <?php
+if ( ! defined( 'ABSPATH' ) ) exit;
+    
         global $wpdb;
         global $postid;
         
@@ -28,7 +30,9 @@
                 $active_gateway = 'PayPing';
                 $TokenCode = $value['payping_token'];
                 $url_return = $value['callback'];
-
+                $return_page = get_page_by_path($url_return, OBJECT, 'page');
+                $CallbackURL = get_permalink($return_page->ID);
+                
                 // Set Data -> Table Trans_ContantForm7
                 $table_name = $wpdb->prefix . "cf7_payping_transaction";
                 $_x = array();
@@ -36,7 +40,7 @@
                 $_x['transid'] = ''; // create dynamic or id_get
                 $_x['gateway'] = $active_gateway; // name gateway
                 $_x['cost'] = $price;
-                $_x['created_at'] = time();
+                $_x['created_at'] = current_time('timestamp');
                 $_x['email'] = $user_email;
                 $_x['user_mobile'] = $user_mobile;
                 $_x['description'] = $description;
@@ -59,7 +63,7 @@
                         $Paymenter = 'NONE';
                         $payerIdentity = 'NONE';
                     }
-                    $CallbackURL = get_page_by_title( $url_return )->guid;
+                    
                     $wpdb->insert( $table_name, $_x, $_y );
                     $clientrefid = $wpdb->insert_id;
                     /* Create Pay */
@@ -73,7 +77,7 @@
 						'NationalCode'	   => ''
                     );
                     $pay_args = array(
-                        'body' => json_encode( $pay_data ),
+                        'body' => wp_json_encode( $pay_data ),
                         'timeout' => '45',
                         'redirection' => '5',
                         'httpsversion' => '1.0',
@@ -87,7 +91,7 @@
 						),
                         'cookies' => array()
                     );
-					//var_dump($pay_data); die();
+					
                     $pay_url = 'https://api.payping.ir/v3/pay';
                     $pay_response = wp_remote_post( $pay_url, $pay_args );
                     $PAY_XPP_ID = $pay_response["headers"]["x-paypingrequest-id"];
@@ -108,15 +112,15 @@
                                 exit;
                             }else{
                                 $Message = ' تراکنش ناموفق بود- کد خطا : '.$PAY_XPP_ID;
-                                echo '<pre>';
+                                echo esc_html('<pre>');
                                 print_r($Message);
-                                echo '</pre>';
+                                echo esc_html('</pre>');
                             }
                         }else{
                             $Message = wp_remote_retrieve_body( $pay_response ).'<br /> کد خطا: '.$PAY_XPP_ID;
-                            echo '<pre>';
+                            echo esc_html('<pre>');
                             print_r($Message);
-                            echo '</pre>';
+                            echo esc_html('</pre>');
                         }
                     }
 
